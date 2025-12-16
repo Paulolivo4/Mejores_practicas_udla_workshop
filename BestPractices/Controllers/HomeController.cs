@@ -1,21 +1,17 @@
-﻿using Best_Practices.Infraestructure.Factories;
-using Best_Practices.Infraestructure.Singletons;
-using Best_Practices.Models;
-using Best_Practices.Repositories;
+﻿using BestPractices.Repositories;
+using BestPractices.Factories;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Threading.Tasks;
 
-namespace Best_Practices.Controllers
+namespace BestPractices.Controllers
 {
+    /// Controlador principal de la aplicación.
+    /// Su responsabilidad es coordinar las acciones entre la vista,
+    /// las fábricas y el repositorio.
     public class HomeController : Controller
     {
         private readonly ILogger<HomeController> _logger;
-
         private readonly IVehicleRepository _vehicleRepository;
 
         public HomeController(IVehicleRepository vehicleRepository, ILogger<HomeController> logger)
@@ -27,29 +23,41 @@ namespace Best_Practices.Controllers
         public IActionResult Index()
         {
             var model = new HomeViewModel();
-            model.Vehicles = VehicleCollection.Instance.Vehicles;
-            string error = Request.Query.ContainsKey("error") ? Request.Query["error"].ToString() : null;
-            ViewBag.ErrorMessage = error;
+            model.Vehicles = _vehicleRepository.GetVehicles();
 
+            string error = Request.Query.ContainsKey("error")
+                ? Request.Query["error"].ToString()
+                : null;
+
+            ViewBag.ErrorMessage = error;
             return View(model);
         }
 
         [HttpGet]
         public IActionResult AddMustang()
         {
-            var factory = new FordMustangCreator();
-            var vehicle = factory.Create();
+            var factory = new MustangFactory();
+            var vehicle = factory.CreateVehicle();
             _vehicleRepository.AddVehicle(vehicle);
-            return Redirect("/");
+            return RedirectToAction("Index");
         }
 
         [HttpGet]
         public IActionResult AddExplorer()
         {
-            var factory = new FordExplorerCreator();
-            var vehicle = factory.Create();
+            var factory = new ExplorerFactory();
+            var vehicle = factory.CreateVehicle();
             _vehicleRepository.AddVehicle(vehicle);
-            return Redirect("/");
+            return RedirectToAction("Index");
+        }
+
+        [HttpGet]
+        public IActionResult AddEscape()
+        {
+            var factory = new EscapeFactory();
+            var vehicle = factory.CreateVehicle();
+            _vehicleRepository.AddVehicle(vehicle);
+            return RedirectToAction("Index");
         }
 
         [HttpGet]
@@ -58,62 +66,13 @@ namespace Best_Practices.Controllers
             try
             {
                 var vehicle = _vehicleRepository.Find(id);
-                vehicle.StartEngine();
-                return Redirect("/");
-            }
-            catch(Exception ex)
-            {
-                ViewBag.ErrorMessage = ex.Message;
-                return Redirect($"/?error={ex.Message}");
-            }
-          
-        }
-
-        [HttpGet]
-        public IActionResult AddGas(string id)
-        {
-
-            try
-            {
-                var vehicle = _vehicleRepository.Find(id);
-                vehicle.AddGas();
-                return Redirect("/");
+                return RedirectToAction("Index");
             }
             catch (Exception ex)
             {
-                ViewBag.ErrorMessage = ex.Message;
-                return Redirect($"/?error={ex.Message}");
+                _logger.LogError(ex, "Error al encender el motor");
+                return RedirectToAction("Index", new { error = "No se pudo encender el motor" });
             }
-        }
-
-        [HttpGet]
-        public IActionResult StopEngine(string id)
-        {
-            try
-            {
-                var vehicle = _vehicleRepository.Find(id);
-                vehicle.StopEngine();
-                return Redirect("/");
-            }
-            catch(Exception ex)
-            {
-                ViewBag.ErrorMessage = ex.Message;
-                return Redirect($"/?error={ex.Message}");
-            }
-           
-           
-        }
-
-
-        public IActionResult Privacy()
-        {
-            return View();
-        }
-
-        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-        public IActionResult Error()
-        {
-            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
     }
 }
